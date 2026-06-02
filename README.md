@@ -219,40 +219,45 @@ voron-infinite-heatbed/
 - Python 3.7+ on the Raspberry Pi
 - Hardware wired and connected (see Hardware Requirements)
 
-### Steps
+### Steps (Fully Automated)
+
+**On your CB1 or Raspberry Pi:**
 
 ```bash
 cd ~
-git clone https://github.com/YOUR_USERNAME/voron-infinite-heatbed.git
+git clone https://github.com/Kykwokaj/voron-infinite-heatbed.git
 cd voron-infinite-heatbed
 bash install.sh
 ```
 
-The installer will:
-1. Symlink `klippy_modules/infinite_heatbed/` into Klipper's extras directory
-2. Symlink `moonraker/infinite_heatbed_server.py` into Moonraker's components directory
-3. Ask you to add **one `[include]` line to `printer.cfg`** and **one line to `moonraker.conf`** (see below)
-4. Register itself with Moonraker's `update_manager` for automatic OTA updates
+The installer will **ask you questions** and automatically:
+1. ✅ Symlink Klipper extra and Moonraker component
+2. ✅ Ask for motor count (1 or 2)
+3. ✅ Ask for stepper pin numbers
+4. ✅ Ask for ejection sensor type (TOF / camera / both / none)
+5. ✅ Ask for door actuator type (servo / solenoid / stepper / none)
+6. ✅ Update all config files with your pins and choices
+7. ✅ Add includes to `printer.cfg` and `moonraker.conf`
+8. ✅ Restart Klipper and Moonraker
 
-### printer.cfg additions
+**That's it!** No manual config editing needed.
 
-Add **only one line** to your `printer.cfg`:
+### Verify Installation
 
-```ini
-[include ~/voron-infinite-heatbed/config/infinite_heatbed.cfg]
+After restart (wait 30 seconds), go to **Mainsail/Fluidd console** and type:
+
+```gcode
+HEATBED_STATUS
 ```
 
-That single include pulls in all config files (hardware, params, macros, user customizations).
+If you see status output, the mod loaded successfully! 🎉
 
-### moonraker.conf additions
+### Uninstall
 
-Add **only one line** to your `moonraker.conf`:
-
-```ini
-[include ~/voron-infinite-heatbed/moonraker/infinite_heatbed.conf]
+```bash
+cd ~/voron-infinite-heatbed
+bash install.sh -u
 ```
-
-That single include pulls in the Mainsail panel config and update manager settings.
 
 ---
 
