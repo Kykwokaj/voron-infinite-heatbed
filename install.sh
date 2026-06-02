@@ -141,13 +141,13 @@ prompt_motor_count() {
 
 prompt_sensor_type() {
     echo ""
-    prompt "Which ejection sensor?"
+    prompt "Ejection sensor (optional)?"
     echo "  1) TOF (VL53L0X) - most reliable"
     echo "  2) Camera detection"
     echo "  3) Both (TOF + Camera)"
-    echo "  4) None (manual eject only)"
-    read -p "  Enter choice [1]: " sensor_choice
-    sensor_choice="${sensor_choice:-1}"
+    echo "  4) None (manual eject only) [default]"
+    read -p "  Enter choice [4]: " sensor_choice
+    sensor_choice="${sensor_choice:-4}"
 
     local sensor_type="none"
     [[ $sensor_choice -eq 1 ]] && sensor_type="tof"
@@ -162,6 +162,35 @@ prompt_sensor_type() {
     fi
 
     info "Sensor type: $sensor_type"
+}
+
+prompt_door_type() {
+    echo ""
+    prompt "Door opener (optional)?"
+    echo "  1) Servo"
+    echo "  2) Solenoid"
+    echo "  3) Stepper/Linear actuator"
+    echo "  4) None (manual door) [default]"
+    read -p "  Enter choice [4]: " door_choice
+    door_choice="${door_choice:-4}"
+
+    local door_type="none"
+    [[ $door_choice -eq 1 ]] && door_type="servo"
+    [[ $door_choice -eq 2 ]] && door_type="solenoid"
+    [[ $door_choice -eq 3 ]] && door_type="stepper"
+
+    sed -i "s/door_type: none/door_type: $door_type/" "${IHB_CONFIG_DIR}/base/infinite_heatbed.cfg"
+
+    if [[ $door_type != "none" ]]; then
+        # Uncomment door config sections based on type
+        if [[ $door_type == "servo" ]]; then
+            sed -i '/^#\[servo infinite_heatbed_door_servo\]/,/^#initial_angle: 0/s/^#//' "${IHB_CONFIG_DIR}/base/infinite_heatbed.cfg"
+        elif [[ $door_type == "solenoid" ]]; then
+            sed -i '/^#\[output_pin infinite_heatbed_door_solenoid\]/,/^#shutdown_value: 0/s/^#//' "${IHB_CONFIG_DIR}/base/infinite_heatbed.cfg"
+        fi
+    fi
+
+    info "Door type: $door_type"
 }
 
 uninstall() {
@@ -234,6 +263,7 @@ main() {
         create_moonraker_conf
         prompt_motor_count
         prompt_sensor_type
+        prompt_door_type
         add_includes_to_config
         restart_services
         print_completion_message
