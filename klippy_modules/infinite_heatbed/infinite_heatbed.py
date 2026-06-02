@@ -43,10 +43,14 @@ class InfiniteHeatbed:
         from .heatbed_sensors import HeatbedSensors
         from .door_controller import DoorController
 
+        # Default sensor parameters
+        sensor_params = {
+            'tof_threshold_mm': 50.0,
+            'camera_snapshot_url': 'http://localhost/webcam/?action=snapshot',
+        }
+
         self._motion = HeatbedMotion(self.printer, self.motor_count, self.belt_speed)
-        self._sensors = HeatbedSensors(self.printer, self.ejection_sensor,
-                                       self.printer.lookup_object('gcode')
-                                           .get_macro_params('_IHB_PARAMS', {}))
+        self._sensors = HeatbedSensors(self.printer, self.ejection_sensor, sensor_params)
         self._door = DoorController(self.printer, self.door_type)
 
         # Restore saved print length if any
