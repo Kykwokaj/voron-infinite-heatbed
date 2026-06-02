@@ -219,7 +219,7 @@ voron-infinite-heatbed/
 - Python 3.7+ on the Raspberry Pi
 - Hardware wired and connected (see Hardware Requirements)
 
-### Steps (Fully Automated)
+### Steps (3 Commands)
 
 **On your CB1 or Raspberry Pi:**
 
@@ -230,27 +230,41 @@ cd voron-infinite-heatbed
 bash install.sh
 ```
 
-The installer will **ask you questions** and automatically:
-1. ✅ Symlink Klipper extra and Moonraker component
-2. ✅ Ask for motor count (1 or 2)
-3. ✅ Ask for stepper pin numbers
-4. ✅ Ask for ejection sensor type (TOF / camera / both / none)
-5. ✅ Ask for door actuator type (servo / solenoid / stepper / none)
-6. ✅ Update all config files with your pins and choices
-7. ✅ Add includes to `printer.cfg` and `moonraker.conf`
-8. ✅ Restart Klipper and Moonraker
+The installer will ask **only 2 questions**:
+1. **Motor count**: 1 or 2?
+2. **Sensor type**: TOF / Camera / Both / None?
 
-**That's it!** No manual config editing needed.
+Then automatically:
+- ✅ Symlink Klipper extra and Moonraker component
+- ✅ Copy config files to `printer_data/config/ihb/` (visible in Fluidd!)
+- ✅ Add includes to `printer.cfg` and `moonraker.conf`
+- ✅ Restart Klipper and Moonraker
+
+### Configure Pins via Fluidd
+
+After installation:
+1. Wait **30 seconds** for Klipper to restart
+2. Open **Fluidd/Mainsail** → **Config Files**
+3. Look for **`ihb`** folder
+4. Edit **`ihb/base/infinite_heatbed.cfg`** and set your stepper pins:
+   ```ini
+   [manual_stepper infinite_heatbed_motor1]
+   step_pin: PE2               # ← Change to YOUR pins
+   dir_pin: PE3                # ← Change to YOUR pins
+   enable_pin: !PE4            # ← Change to YOUR pins
+   ```
+5. Save
+6. Click **RESTART** in Fluidd console
 
 ### Verify Installation
 
-After restart (wait 30 seconds), go to **Mainsail/Fluidd console** and type:
+In **Fluidd console**, type:
 
 ```gcode
 HEATBED_STATUS
 ```
 
-If you see status output, the mod loaded successfully! 🎉
+If successful, you'll see the heatbed state! 🎉
 
 ### Uninstall
 
