@@ -55,6 +55,22 @@ link_moonraker() {
     fi
 }
 
+update_config_paths() {
+    # Replace /home/biqu with actual HOME in config files
+    # This allows portable config includes
+    local config_main="${SCRIPT_DIR}/config/infinite_heatbed.cfg"
+    local moonraker_main="${SCRIPT_DIR}/moonraker/infinite_heatbed.conf"
+
+    if [[ -f "$config_main" ]]; then
+        sed -i "s|/home/biqu|${HOME}|g" "$config_main"
+        info "Updated paths in config/infinite_heatbed.cfg"
+    fi
+    if [[ -f "$moonraker_main" ]]; then
+        sed -i "s|/home/biqu|${HOME}|g" "$moonraker_main"
+        info "Updated paths in moonraker/infinite_heatbed.conf"
+    fi
+}
+
 unlink_klipper() {
     local dst="${KLIPPER_EXTRAS}/infinite_heatbed"
     [[ -L "$dst" ]] && rm "$dst" && info "Removed Klipper extra link: $dst" || true
@@ -101,6 +117,7 @@ main() {
     else
         info "Installing Voron Infinite Heatbed..."
         check_dirs
+        update_config_paths
         link_klipper
         link_moonraker
         print_printer_cfg_instructions
