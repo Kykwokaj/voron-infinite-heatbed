@@ -4,14 +4,18 @@ Installation Steps
 1. Copy the mod to your Raspberry Pi
 On your Pi, clone or download the mod:
 
+```ini
 cd ~
 git clone https://github.com/YOUR_USERNAME/voron-infinite-heatbed.git
 # OR if you're testing locally:
 # cd ~/voron-infinite-heatbed  (if already there)
+```
 
 2. Run the installer
+```ini
 cd ~/voron-infinite-heatbed
 bash install.sh
+```
 
 This will:
 Symlink the Klipper extra into ~/klipper/klippy/extras/infinite_heatbed
@@ -21,17 +25,35 @@ Restart Klipper and Moonraker
 3. Edit printer.cfg
 Add these lines at the end of your printer.cfg:
 
+```ini
 # Voron Infinite Heatbed
 [include ~/voron-infinite-heatbed/config/base/infinite_heatbed.cfg]
 [include ~/voron-infinite-heatbed/config/base/infinite_heatbed_params.cfg]
 [include ~/voron-infinite-heatbed/config/base/infinite_heatbed_macros.cfg]
 [include ~/voron-infinite-heatbed/config/optional/client_macros.cfg]
+```
 
 4. Edit moonraker.conf
 Add this line:
+```ini
+[include ~/voron-infinite-heatbed/mainsail/infinite_heatbed_panel.cfg]
+```
 
 5. Configure your hardware pins
 Edit ~/voron-infinite-heatbed/config/base/infinite_heatbed.cfg and replace the pin numbers with your actual MCU pins:
+```ini
+[infinite_heatbed]
+motor_count: 1              # or 2 if using dual motors
+ejection_sensor: tof        # tof | camera | both | none
+door_type: none             # servo | solenoid | stepper | none
+
+[manual_stepper infinite_heatbed_motor1]
+step_pin: PE2               # ← CHANGE TO YOUR PIN
+dir_pin: PE3                # ← CHANGE TO YOUR PIN
+enable_pin: !PE4            # ← CHANGE TO YOUR PIN
+rotation_distance: 40       # tune to your belt
+microsteps: 16
+```
 
 Find your pin numbers:
 
@@ -39,12 +61,23 @@ Look in your MCU's board definition (BTT Octopus, SKR Pro, etc.)
 Use QUERY_ENDSTOPS in Klipper console to verify pin names
 6. If using TOF sensor
 Uncomment the TOF section in infinite_heatbed.cfg:
-
+```ini
+#[temperature_sensor infinite_heatbed_tof]
+#sensor_type: temperature_host
+#sensor_path: /tmp/ihb_tof_reading
+```
 You'll also need a co-processor (RP2040 Pico) running CircuitPython to read the VL53L0X sensor and write to /tmp/ihb_tof_reading. See README "Pattern 4" for details.
 
 7. If using door opener
 Uncomment your door type in infinite_heatbed.cfg:
-
+```ini
+[servo infinite_heatbed_door_servo]
+pin: PB6                    # ← YOUR PIN
+maximum_servo_angle: 180
+minimum_pulse_width: 0.001
+maximum_pulse_width: 0.002
+initial_angle: 0
+```
 Servo example:
 
 Then uncomment the servo macros in config/optional/client_macros.cfg:
