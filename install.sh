@@ -155,6 +155,12 @@ prompt_sensor_type() {
     [[ $sensor_choice -eq 3 ]] && sensor_type="both"
 
     sed -i "s/ejection_sensor: tof/ejection_sensor: $sensor_type/" "${IHB_CONFIG_DIR}/base/infinite_heatbed.cfg"
+
+    # Remove TOF-specific parameters if TOF is not used
+    if [[ $sensor_type != "tof" && $sensor_type != "both" ]]; then
+        sed -i '/tof_threshold_mm/d' "${IHB_CONFIG_DIR}/base/infinite_heatbed.cfg"
+    fi
+
     info "Sensor type: $sensor_type"
 }
 
