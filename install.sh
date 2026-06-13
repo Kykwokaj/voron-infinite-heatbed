@@ -78,12 +78,13 @@ copy_configs() {
     cp "${SCRIPT_DIR}/config/base/infinite_heatbed_params.cfg" "${IHB_CONFIG_DIR}/base/"
     cp "${SCRIPT_DIR}/config/base/infinite_heatbed_macros.cfg" "${IHB_CONFIG_DIR}/base/"
     cp "${SCRIPT_DIR}/config/optional/client_macros.cfg" "${IHB_CONFIG_DIR}/optional/"
+    cp "${SCRIPT_DIR}/config/infinite_heatbed_master.cfg" "${IHB_CONFIG_DIR}/"
 
     info "Copied config files to ${IHB_CONFIG_DIR}"
 }
 
 add_includes_to_config() {
-    local include_printer="[include ihb/base/infinite_heatbed.cfg]"
+    local include_printer="[include ihb/infinite_heatbed_master.cfg]"
     local include_moonraker="[include ihb/infinite_heatbed.conf]"
 
     # Add to printer.cfg
