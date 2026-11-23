@@ -2,6 +2,9 @@
 Voron Infinite Heatbed — Door Controller
 Pluggable door actuator. Configure door_type in [infinite_heatbed].
 Currently a placeholder — implement the sub-class matching your hardware.
+
+open()/close() use gcode.run_script, so they must be called from a reactor
+callback (the eject sequence), not from inside a G-code command handler.
 """
 
 import logging
@@ -56,11 +59,11 @@ class _ServoController:
         self._gcode = printer.lookup_object('gcode')
 
     def open(self):
-        self._gcode.run_script_from_command(
+        self._gcode.run_script(
             "SET_SERVO SERVO=infinite_heatbed_door_servo ANGLE=%d" % self.OPEN_ANGLE)
 
     def close(self):
-        self._gcode.run_script_from_command(
+        self._gcode.run_script(
             "SET_SERVO SERVO=infinite_heatbed_door_servo ANGLE=%d" % self.CLOSE_ANGLE)
 
 
@@ -74,11 +77,11 @@ class _SolenoidController:
         self._gcode = printer.lookup_object('gcode')
 
     def open(self):
-        self._gcode.run_script_from_command(
+        self._gcode.run_script(
             "SET_PIN PIN=infinite_heatbed_door_solenoid VALUE=1")
 
     def close(self):
-        self._gcode.run_script_from_command(
+        self._gcode.run_script(
             "SET_PIN PIN=infinite_heatbed_door_solenoid VALUE=0")
 
 
@@ -86,21 +89,24 @@ class _StepperController:
     """
     Door driven by a small stepper or linear actuator.
     Expects [manual_stepper infinite_heatbed_door_stepper] in config.
-    Adjust OPEN_DIST_MM and SPEED for your actuator.
+    MANUAL_STEPPER MOVE is an ABSOLUTE position. The door is assumed closed
+    at Klipper startup (position 0), so open moves to OPEN_POS_MM and close
+    moves back to CLOSED_POS_MM.
+    Adjust OPEN_POS_MM and SPEED for your actuator.
     """
-    OPEN_DIST_MM  = 50
-    CLOSE_DIST_MM = -50
+    OPEN_POS_MM   = 50
+    CLOSED_POS_MM = 0
     SPEED         = 10
 
     def __init__(self, printer):
         self._gcode = printer.lookup_object('gcode')
 
     def open(self):
-        self._gcode.run_script_from_command(
+        self._gcode.run_script(
             "MANUAL_STEPPER STEPPER=infinite_heatbed_door_stepper "
-            "MOVE=%.1f SPEED=%.1f" % (self.OPEN_DIST_MM, self.SPEED))
+            "MOVE=%.1f SPEED=%.1f" % (self.OPEN_POS_MM, self.SPEED))
 
     def close(self):
-        self._gcode.run_script_from_command(
+        self._gcode.run_script(
             "MANUAL_STEPPER STEPPER=infinite_heatbed_door_stepper "
-            "MOVE=%.1f SPEED=%.1f" % (self.CLOSE_DIST_MM, self.SPEED))
+            "MOVE=%.1f SPEED=%.1f" % (self.CLOSED_POS_MM, self.SPEED))
