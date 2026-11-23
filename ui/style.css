@@ -270,3 +270,43 @@ dialog::backdrop { background: rgba(0, 0, 0, .6); }
 @media (max-width: 560px) {
   .embed .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* ── Small embed (e.g. half of Fluidd's camera card, ~380x285) ──
+   Drop the diagram for a one-line summary and keep every control visible. */
+.belt-mini { display: none; }
+@media (max-width: 560px), (max-height: 420px) {
+  .embed body { font-size: 12px; }
+  .embed #belt { padding: 6px 10px 8px; }
+  [data-theme="fluidd"].embed #belt .card-head { margin: -6px -10px 6px; padding: 4px 10px; min-height: 32px; }
+  .embed .card-head { margin-bottom: 4px; gap: 6px; }
+  .embed .card-head h2 { font-size: 13px; }
+  .embed .embed-print { margin: 0 0 4px; font-size: 11px; }
+  .embed .belt-view { display: none; }
+  .embed .belt-mini {
+    display: block; font-family: var(--mono); font-size: 11px; color: var(--text);
+    background: var(--card-2); border: 1px solid var(--line); border-radius: 4px;
+    padding: 4px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .embed .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin-top: 4px; }
+  .embed .t-extra { display: none; }
+  .embed .tile { padding: 3px 6px; gap: 0; }
+  .embed .tile span { font-size: 10px; }
+  .embed .tile b { font-size: 12px; }
+  .embed .eject { margin-top: 6px; }
+  .embed .eject-head { margin-bottom: 3px; }
+  .embed .eyebrow { font-size: 10px; }
+  .embed #eject-note { display: none; }
+  .embed .step label { font-size: 10px; }
+  .embed .step .track { height: 6px; }
+  .embed .belt-actions { margin-top: 6px; gap: 6px; flex-direction: column; align-items: stretch; }
+  .embed .jog { gap: 0; }
+  .embed .jog > span { display: none; }
+  .embed .jog-btns { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
+  .embed .jog-btns .btn { min-width: 0; padding: 4px 0; font-size: 12px; }
+  .embed .steps { grid-template-columns: 2fr 1fr 3fr 1fr; gap: 4px; }
+  .embed .belt-buttons { display: flex; gap: 4px; width: 100%; }
+  .embed .belt-buttons .btn { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .embed .belt-buttons .btn { padding: 5px 4px; font-size: 11px; }
+  .embed .belt-buttons .btn[hidden] { display: none; }
+  .embed .eject-error { margin-top: 4px; padding: 4px 8px; font-size: 11px; }
+}

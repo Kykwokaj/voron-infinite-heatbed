@@ -361,6 +361,9 @@
     const target = busy ? num(h.eject_target_mm) : num(h.eject_distance_mm);
     const travelled = busy || h.phase === 'done' ? num(h.eject_travelled_mm) : 0;
     $('belt-travel').textContent = fmtNum(travelled, 0) + ' / ' + fmtNum(target, 0) + ' mm';
+    $('belt-mini').textContent = 'Belt ' + fmtNum(travelled, 0) + ' / ' + fmtNum(target, 0) + ' mm this eject · ' +
+      (S.server && S.server.active_mat ? S.server.active_mat : 'no mat') +
+      (bed.temperature != null ? ' · bed ' + Math.round(bed.temperature) + '°C' : '');
 
     // seam
     const dot = $('seam-dot');
