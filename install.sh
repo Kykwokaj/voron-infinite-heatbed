@@ -109,18 +109,49 @@ add_includes_to_config() {
 }
 
 create_moonraker_conf() {
-    # Create a separate ihb config file for moonraker (panel + update manager)
-    cat > "${IHB_CONFIG_DIR}/infinite_heatbed.conf" <<'EOF'
-# Voron Infinite Heatbed - Moonraker Configuration
+    # Moonraker config: component, job queue, update manager
+    local dst="${IHB_CONFIG_DIR}/infinite_heatbed.conf"
+    if grep -q "^\[job_queue\]" "$MOONRAKER_CFG"; then
+        # moonraker.conf already has [job_queue]: don't define it twice
+        sed '/^\[job_queue\]/,/^automatic_transition/d'             "${SCRIPT_DIR}/moonraker/infinite_heatbed.conf" > "$dst"
+        warn "moonraker.conf already has [job_queue]. Set 'automatic_transition: False' there."
+    else
+        cp "${SCRIPT_DIR}/moonraker/infinite_heatbed.conf" "$dst"
+    fi
+    info "Created Moonraker config in ${dst}"
+}
 
-[update_manager infinite_heatbed]
-type: git_repo
-path: ~/voron-infinite-heatbed
-origin: https://github.com/Kykwokaj/voron-infinite-heatbed.git
-primary_branch: main
-managed_services: klipper moonraker
+link_web_ui() {
+    # Serve the belt bed UI next to Mainsail/Fluidd at http://<printer>/ihb/
+    # (the Moonraker component also re-creates these links after web updates)
+    local web
+    for web in "${HOME}/mainsail" "${HOME}/fluidd"; do
+        [[ -d "$web" ]] || continue
+        if [[ -L "${web}/ihb" || ! -e "${web}/ihb" ]]; then
+            ln -sfn "${SCRIPT_DIR}/ui" "${web}/ihb"
+            info "Linked web UI into ${web}/ihb"
+        fi
+    done
+
+    # Add a "Belt Bed" entry to Mainsail's sidebar
+    local navi="${HOME}/printer_data/config/.theme/navi.json"
+    if [[ ! -f "$navi" ]]; then
+        mkdir -p "$(dirname "$navi")"
+        cat > "$navi" <<'EOF'
+[
+  {
+    "title": "Belt Bed",
+    "href": "/ihb/",
+    "target": "_self",
+    "icon": "M2 12a4 4 0 0 1 4-4h12a4 4 0 0 1 0 8H6a4 4 0 0 1-4-4m4-2a2 2 0 1 0 0 4a2 2 0 0 0 0-4m12 0a2 2 0 1 0 0 4a2 2 0 0 0 0-4",
+    "position": 25
+  }
+]
 EOF
-    info "Created Moonraker config in ${IHB_CONFIG_DIR}/infinite_heatbed.conf"
+        info "Added 'Belt Bed' to the Mainsail sidebar"
+    elif ! grep -q '"/ihb/"' "$navi"; then
+        warn "Add a link to /ihb/ in ${navi} to show 'Belt Bed' in the Mainsail sidebar."
+    fi
 }
 
 prompt_motor_count() {
@@ -199,6 +230,8 @@ uninstall() {
 
     [[ -L "${KLIPPER_EXTRAS}/infinite_heatbed" ]] && rm "${KLIPPER_EXTRAS}/infinite_heatbed"
     [[ -L "${MOONRAKER_COMPONENTS}/infinite_heatbed_server.py" ]] && rm "${MOONRAKER_COMPONENTS}/infinite_heatbed_server.py"
+    [[ -L "${HOME}/mainsail/ihb" ]] && rm "${HOME}/mainsail/ihb"
+    [[ -L "${HOME}/fluidd/ihb" ]] && rm "${HOME}/fluidd/ihb"
     [[ -d "${IHB_CONFIG_DIR}" ]] && rm -rf "${IHB_CONFIG_DIR}"
 
     # Remove includes from config files
@@ -235,6 +268,7 @@ ${BLUE}Next steps:${NC}
   3. Look for "ihb" folder
   4. Edit "ihb/base/infinite_heatbed.cfg" and set your stepper pins
   5. Return to console and type: HEATBED_STATUS
+  6. Open the belt bed UI: http://<printer>/ihb/ (or "Belt Bed" in the Mainsail sidebar)
 
 ${YELLOW}Config files now in Fluidd:${NC}
   📁 ihb/
@@ -262,6 +296,7 @@ main() {
         link_moonraker
         copy_configs
         create_moonraker_conf
+        link_web_ui
         prompt_motor_count
         prompt_sensor_type
         prompt_door_type

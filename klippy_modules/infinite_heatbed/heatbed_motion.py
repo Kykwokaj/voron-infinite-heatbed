@@ -82,6 +82,23 @@ class HeatbedMotion:
         """Advance belt by distance_mm at speed mm/s and wait until done."""
         self.wait_for_move(self.start_move(distance_mm, speed))
 
+    def move_from_command(self, distance_mm, speed=None):
+        """Move the belt from INSIDE a G-code command handler (jog, seam
+        advance). The toolhead timeline waits for the move, so following
+        G-code runs after the belt has stopped."""
+        speed = speed or self.default_speed
+        gcode = self.printer.lookup_object('gcode')
+        names = self._motor_names()
+        lines = ["MANUAL_STEPPER STEPPER=%s SET_POSITION=0" % m for m in names]
+        for i, m in enumerate(names):
+            # all but the last motor use SYNC=0 so they start together; the
+            # last one syncs the toolhead to the end of the move
+            sync = " SYNC=0" if i < len(names) - 1 else ""
+            lines.append("MANUAL_STEPPER STEPPER=%s MOVE=%.3f SPEED=%.3f%s"
+                         % (m, distance_mm, speed, sync))
+        gcode.run_script_from_command("\n".join(lines))
+        self._accumulated_mm += distance_mm
+
     def get_accumulated_distance(self):
         """Total mm the belt has traveled since startup."""
         return self._accumulated_mm

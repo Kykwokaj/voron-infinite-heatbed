@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Belt Bed</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="conn" class="conn" hidden></div>
+
+  <main class="page">
+    <!-- ── Now printing ─────────────────────────────────────── -->
+    <section class="card now" id="now">
+      <div class="now-main">
+        <div class="eyebrow" id="now-eyebrow">Connecting…</div>
+        <div class="now-file" id="now-file">&nbsp;</div>
+        <div class="bar"><div class="bar-fill" id="now-bar"></div></div>
+      </div>
+      <div class="now-stats">
+        <div class="kv"><span>Progress</span><b id="now-progress">–</b></div>
+        <div class="kv"><span>Layer</span><b id="now-layer">–</b></div>
+        <div class="kv"><span>Job ETA</span><b id="now-eta">–</b></div>
+        <div class="kv"><span>Queue done</span><b id="now-queue">–</b></div>
+      </div>
+      <div class="now-actions">
+        <button class="btn" id="btn-pause">Pause</button>
+        <button class="btn" id="btn-stop-after">Stop after this plate</button>
+      </div>
+    </section>
+
+    <!-- ── Belt bed ─────────────────────────────────────────── -->
+    <section class="card" id="belt">
+      <header class="card-head">
+        <h2>Belt bed <span class="badge" id="belt-badge">–</span></h2>
+        <span class="muted small">Side view · eject → front</span>
+      </header>
+
+      <div class="belt-view">
+        <svg id="belt-svg" viewBox="0 0 800 270" role="img" aria-label="Belt side view">
+          <g class="ruler" id="ruler"></g>
+          <text id="belt-travel" class="travel" x="400" y="98" text-anchor="middle">–</text>
+          <text class="travel-label" x="400" y="120" text-anchor="middle">belt travelled this eject</text>
+          <g class="dir">
+            <line x1="560" y1="112" x2="680" y2="112"/>
+            <path d="M672 106 L684 112 L672 118"/>
+            <text x="620" y="102" text-anchor="middle">eject direction</text>
+          </g>
+          <rect class="belt-loop" x="62" y="150" width="676" height="96" rx="48"/>
+          <rect class="belt-inner" x="74" y="162" width="652" height="72" rx="36"/>
+          <rect class="plate" id="plate-zone" x="150" y="171" width="500" height="10" rx="2"/>
+          <text class="plate-label" id="plate-label" x="400" y="203" text-anchor="middle">heated plate · magnetic mat zone</text>
+          <circle class="roller" cx="110" cy="198" r="36"/><circle class="hub" cx="110" cy="198" r="7"/>
+          <circle class="roller" cx="690" cy="198" r="36"/><circle class="hub" cx="690" cy="198" r="7"/>
+          <circle class="seam" id="seam-dot" cx="110" cy="152" r="5"/>
+          <text class="cap" x="110" y="262" text-anchor="middle">idler</text>
+          <text class="cap" x="690" y="262" text-anchor="middle">drive · belt stepper</text>
+          <path class="bin" d="M752 214 v40 h40 v-40"/>
+          <text class="cap" x="772" y="206" text-anchor="middle">bin</text>
+        </svg>
+      </div>
+
+      <div class="tiles">
+        <div class="tile"><span>Belt position</span><b id="t-pos">–</b></div>
+        <div class="tile"><span>Seam</span><b id="t-seam">–</b></div>
+        <div class="tile"><span>Eject cycles</span><b id="t-cycles">–</b></div>
+        <div class="tile"><span>Last eject</span><b id="t-last">–</b></div>
+        <div class="tile"><span>Motor current</span><b id="t-motor">–</b></div>
+      </div>
+
+      <div class="eject">
+        <div class="eject-head">
+          <span class="eyebrow">Eject progress</span>
+          <span class="small" id="eject-note"></span>
+          <b class="eject-pct" id="eject-pct">0%</b>
+        </div>
+        <div class="steps" id="eject-steps"></div>
+        <div class="eject-error" id="eject-error" hidden></div>
+      </div>
+
+      <div class="belt-actions">
+        <div class="jog">
+          <span class="muted small">Jog belt</span>
+          <div class="jog-btns" id="jog-btns"></div>
+        </div>
+        <div class="belt-buttons">
+          <button class="btn" id="btn-seam" title="Jog the seam to the reference mark first">Set seam here</button>
+          <button class="btn" id="btn-reset" hidden>Reset error</button>
+          <button class="btn danger" id="btn-eject">Eject now</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="cols">
+      <!-- ── Print queue ──────────────────────────────────────── -->
+      <section class="card" id="queue">
+        <header class="card-head">
+          <h2>Print queue <span class="muted small" id="q-summary"></span></h2>
+          <div class="head-btns">
+            <button class="btn" id="btn-add">+ Add files</button>
+            <button class="btn" id="btn-clear">Clear done</button>
+            <button class="btn" id="btn-queue">Pause queue</button>
+          </div>
+        </header>
+        <div id="q-banners"></div>
+        <div class="table-wrap">
+          <table class="qtable">
+            <thead><tr>
+              <th>#</th><th class="c-thumb"></th><th>File</th><th class="c-fil">Filament</th>
+              <th>Mat</th><th class="c-time">Time</th><th>Status</th><th></th>
+            </tr></thead>
+            <tbody id="q-rows"></tbody>
+          </table>
+        </div>
+        <p class="empty" id="q-empty" hidden>The queue is empty. Use + Add files to queue prints.</p>
+      </section>
+
+      <div class="side">
+        <!-- ── Heat mat ─────────────────────────────────────────── -->
+        <section class="card" id="mats">
+          <header class="card-head">
+            <h2>Heat mat</h2>
+            <button class="btn small-btn" id="btn-add-mat">+ Add mat</button>
+          </header>
+          <div class="mat-grid" id="mat-grid"></div>
+          <form class="mat-form" id="mat-form" hidden>
+            <div class="form-grid">
+              <label>Name<input name="name" maxlength="40" required></label>
+              <label>Release temp °C<input name="release_temp" type="number" step="1" min="0" max="120"></label>
+              <label>Z offset mm<input name="z_offset" type="number" step="0.005" min="-2" max="2"></label>
+              <label>Bed mesh profile<input name="mesh" maxlength="40" placeholder="optional"></label>
+              <label class="wide">Slicer plate type<input name="slicer_plate" maxlength="60" placeholder="e.g. Textured PEI Plate"></label>
+            </div>
+            <div class="form-btns">
+              <button type="button" class="btn danger-text" id="mat-delete">Delete</button>
+              <span class="grow"></span>
+              <button type="button" class="btn" id="mat-cancel">Cancel</button>
+              <button type="submit" class="btn primary">Save</button>
+            </div>
+          </form>
+          <p class="muted small note">Each mat has its own release temperature, Z offset and optional bed mesh. Queued jobs sliced for another plate type are flagged, and the queue pauses for a mat swap.</p>
+        </section>
+
+        <!-- ── Eject settings ───────────────────────────────────── -->
+        <section class="card" id="settings">
+          <header class="card-head"><h2>Eject settings</h2><span class="small saved" id="set-saved"></span></header>
+          <div class="set-rows" id="set-rows"></div>
+          <label class="check"><input type="checkbox" id="set-seam"> Advance belt past seam before printing</label>
+          <details class="advanced">
+            <summary>Belt geometry and timeouts</summary>
+            <div class="set-rows" id="set-adv"></div>
+          </details>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- Add files dialog -->
+  <dialog id="files-dlg">
+    <form method="dialog" class="dlg">
+      <header class="card-head"><h2>Add files to queue</h2></header>
+      <input type="search" id="files-search" placeholder="Search G-code files">
+      <div class="files-list" id="files-list"></div>
+      <div class="form-btns">
+        <span class="muted small" id="files-count"></span>
+        <span class="grow"></span>
+        <button class="btn" value="cancel">Cancel</button>
+        <button class="btn primary" id="files-add" value="add">Add</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -36,7 +36,7 @@ Add these lines at the end of your printer.cfg:
 4. Edit moonraker.conf
 Add this line:
 ```ini
-[include ~/voron-infinite-heatbed/mainsail/infinite_heatbed_panel.cfg]
+[include ~/voron-infinite-heatbed/moonraker/infinite_heatbed.conf]
 ```
 
 5. Configure your hardware pins
@@ -206,8 +206,8 @@ voron-infinite-heatbed/
 │   │   └── infinite_heatbed_macros.cfg   ← core GCode macros (READ-ONLY)
 │   └── optional/
 │       └── client_macros.cfg             ← user-customizable hook macros
-└── mainsail/
-    └── infinite_heatbed_panel.cfg        ← Mainsail panel moonraker config
+├── moonraker/infinite_heatbed.conf      ← Moonraker config (component, job queue, updates)
+└── ui/                                   ← web UI, served at http://<printer>/ihb/
 ```
 
 ---
@@ -324,23 +324,33 @@ i2c_bus: i2c1
 
 ## Slicer Configuration
 
-The slicer must pass the print's Y-extent (the dimension along the belt direction) so the mod knows how far to advance the belt during ejection.
+`PRINT_LENGTH` is how far the belt must travel to push the whole print off the
+exit edge: the distance from the print's far edge to the exit edge of the plate.
 
 ### OrcaSlicer / SuperSlicer / PrusaSlicer
 
-Add to **Start G-code**:
+Add to **Start G-code** (belt exits at the front, Y=0):
 ```
-HEATBED_PRINT_START PRINT_LENGTH={max_print_height}
+HEATBED_PRINT_START PRINT_LENGTH={first_layer_print_max[1]}
+```
+If the belt exits at the back (Y max), use
+`PRINT_LENGTH={print_bed_max[1] - first_layer_print_min[1]}`. If the belt runs
+along X, use `[0]` instead of `[1]`.
+
+After `CALIBRATE_Z` / `BED_MESH_CALIBRATE`, apply the selected heat mat's Z offset
+and mesh:
+```
+HEATBED_APPLY_MAT
 ```
 
-Add to **End G-code**:
+Add to **End G-code**, after your own `PRINT_END` has lifted and parked the toolhead:
 ```
 HEATBED_PRINT_END
 ```
 
-> `max_print_height` is a slicer placeholder for the model's maximum Z height in mm.  
-> If your belt runs in the Y direction, use the Y bounding box extent instead.  
-> The value tells the mod the minimum distance the belt must advance to clear the print.
+The web UI flags queued jobs that were sliced for another heat mat. It reads
+OrcaSlicer's plate type (`curr_bed_type`) from the file. With other slicers, add
+a comment to the start G-code naming the mat, for example `; ihb_mat = Smooth PEI`.
 
 ---
 
@@ -348,10 +358,17 @@ HEATBED_PRINT_END
 
 | Command | Description |
 |---------|-------------|
-| `HEATBED_PRINT_START PRINT_LENGTH=<mm>` | Called from slicer start gcode; records print length for ejection |
+| `HEATBED_PRINT_START PRINT_LENGTH=<mm>` | Called from slicer start gcode; records print length, runs `HEATBED_PREPARE` |
 | `HEATBED_PRINT_END` | Called from slicer end gcode; triggers full eject sequence |
 | `HEATBED_EJECT` | Manually trigger belt eject (uses last stored print length) |
 | `HEATBED_STATUS` | Print current state to console |
+| `HEATBED_RESET [FORCE=1]` | Clear the error state. `FORCE=1` aborts a running eject |
+| `HEATBED_JOG DISTANCE=<mm> [SPEED=<mm/s>]` | Move the belt (refused during a print or eject) |
+| `HEATBED_SET_SEAM` | Record that the belt seam is at the reference mark (plate entry edge) |
+| `HEATBED_PREPARE` | Moves the seam off the plate if `advance_past_seam` is on |
+| `HEATBED_SET_PARAMS KEY=value ...` | Change eject parameters, e.g. `BELT_SPEED=40 Z_LIFT_MM=20` |
+| `HEATBED_SET_MAT NAME= RELEASE_TEMP= Z_OFFSET= MESH=` | Select the heat mat (the web UI does this) |
+| `HEATBED_APPLY_MAT` | Apply the heat mat's Z offset and bed mesh (start G-code) |
 | `HEATBED_SET_SPEED SPEED=<mm/s>` | Override belt speed for testing |
 | `HEATBED_OPEN_DOOR` | Manually open door |
 | `HEATBED_CLOSE_DOOR` | Manually close door |
@@ -359,42 +376,49 @@ HEATBED_PRINT_END
 ### Ejection Sequence (automatic, triggered by `HEATBED_PRINT_END`)
 
 ```
-1. HEATBED_OPEN_DOOR
-2. Belt advances (print_length + eject_margin_mm) mm at belt_speed
-   → TOF: wait for object detection, then wait for object to clear
-   → Camera: capture snapshot, confirm no objects detected
-3. If sensor timeout: raise error, stop belt, alert user
-4. HEATBED_CLOSE_DOOR
-5. Moonraker job queue: start next queued print (if any)
+1. Cool the bed to the heat mat's release temperature (turns the bed heater off)
+2. Lift the toolhead z_lift_mm
+3. Open the door (if configured)
+4. Run the belt eject_distance_mm (or print_length + eject_margin_mm)
+   -> TOF: the print must pass the sensor while the belt moves
+   -> Camera: check the bed after the belt stops
+   -> not clear: run the belt again, up to eject_retries times, then error
+5. Close the door
+6. Moonraker starts the next queued job, unless the eject failed,
+   "stop after this plate" is on, or the next job needs another heat mat
 ```
 
 ---
 
-## Mainsail / Fluidd Panel
+## Web UI
 
-The Moonraker component exposes status at:
-```
-GET /machine/infinite_heatbed/status
+Open `http://<printer>/ihb/`, or **Belt Bed** in the Mainsail sidebar. It shows:
+
+- **Now printing**: file, plate number, progress, layer, ETA, time until the queue is done; Pause and "Stop after this plate"
+- **Belt bed**: side view with the seam position, belt position, eject cycles, last eject time, belt motor current, a live eject progress bar (cool, lift, belt, done), jog buttons, Set seam here, Eject now
+- **Print queue**: finished, printing and queued plates with filament, heat mat and time; reorder, remove, add files, pause/start the queue; warns when a plate needs a mat swap
+- **Heat mat**: choose, add and edit mats (release temperature, Z offset, bed mesh, slicer plate type)
+- **Eject settings**: release temperature, Z lift, eject distance and margin, belt speed, retries, seam handling, belt geometry, timeouts
+
+Settings and mats are stored in Moonraker's database and pushed to Klipper on every restart.
+
+Requirements in moonraker.conf (install.sh adds them through `ihb/infinite_heatbed.conf`):
+```ini
+[infinite_heatbed_server]
+
+[job_queue]
+automatic_transition: False
 ```
 
-Response:
-```json
-{
-  "state": "idle",
-  "belt_distance_mm": 12450.0,
-  "door_state": "closed",
-  "sensor_reading_mm": 230.0,
-  "camera_clear": true,
-  "print_length_mm": 150.0,
-  "queue_length": 2
-}
-```
+Install puts a link to the `ui/` folder in `~/mainsail/ihb` (and `~/fluidd/ihb`);
+the Moonraker component re-creates it after Mainsail updates. If Moonraker
+requires a login, add your network to `trusted_clients` in `[authorization]`.
 
-Mainsail shows this via a custom panel added to `moonraker.conf`. The panel displays:
-- **State badge**: `idle` / `printing` / `ejecting` / `door_open` / `error`
-- **Sensor reading**: live TOF distance or camera status
-- **Queue depth**: number of jobs waiting
-- **Belt odometer**: total mm driven (useful for maintenance intervals)
+Preview without a printer: open `ui/index.html?demo=1` in a browser.
+
+Seam tracking: set `belt_loop_length_mm` and `plate_length_mm` in Eject settings,
+jog the belt until the seam is at the plate's entry edge (idler side), then press
+**Set seam here**.
 
 ---
 
@@ -516,9 +540,9 @@ def _set_state(self, new_state):
 
 Slicer passes `PRINT_LENGTH` as a GCode parameter. Store it as a `[save_variables]` variable so it persists across restarts:
 ```python
-save_vars = self.printer.lookup_object('save_variables')
-save_vars.allVariables['ihb_print_length'] = print_length
-save_vars.save()
+# save_variables has no public save(); the module writes the file itself
+# (see InfiniteHeatbed._persist), or use the SAVE_VARIABLE G-code command.
+self._persist(ihb_print_length=print_length)
 ```
 
 ---
@@ -529,7 +553,7 @@ save_vars.save()
 - [ ] Belt tension adjustment mechanism
 - [ ] Door mechanism: servo implementation (first to be implemented)
 - [ ] KlipperScreen panel (touchscreen control)
-- [ ] Fluidd custom panel
+- [x] Web UI (belt view, queue, heat mats, eject settings)
 - [ ] ML-based camera detection (MobileNet)
 - [ ] Multi-material support (coordinate with ERCF/Happy Hare)
 - [ ] Belt wear monitoring via odometer + maintenance alerts
