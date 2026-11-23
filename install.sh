@@ -192,8 +192,8 @@ apply_web_ui() {
     if grep -q "^ui_theme:" "$conf"; then
         sed -i "s/^ui_theme:.*/ui_theme: ${theme}/" "$conf"
     else
-        sed -i "s/^\[infinite_heatbed_server\]/[infinite_heatbed_server]
-ui_theme: ${theme}/" "$conf"
+        # add the option on the line after the section header
+        sed -i "/^\[infinite_heatbed_server\]/a ui_theme: ${theme}" "$conf"
     fi
 
     # Fluidd: show the compact belt card on the dashboard as an "HTTP page"
