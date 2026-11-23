@@ -163,14 +163,15 @@ EOF
 }
 
 prompt_web_ui() {
-    # Which web interface shows the belt bed UI?
+    # First question of the installer: which web interface gets the belt bed UI?
+    # The default is guessed from the web folders found on this machine.
     local default=1
     [[ -d "${HOME}/fluidd" && ! -d "${HOME}/mainsail" ]] && default=2
     [[ -d "${HOME}/fluidd" && -d "${HOME}/mainsail" ]] && default=3
     echo ""
-    prompt "Which web interface do you use?"
+    prompt "UI installation"
     echo "  1) Mainsail  (Belt Bed page + sidebar link)"
-    echo "  2) Fluidd    (Belt Bed page + compact card on the Fluidd dashboard)"
+    echo "  2) Fluidd    (Belt Bed page + belt card on the Fluidd dashboard)"
     echo "  3) Both"
     read -p "  Enter choice [${default}]: " ui_choice
     ui_choice="${ui_choice:-$default}"
@@ -179,7 +180,11 @@ prompt_web_ui() {
         3) WEB_UI="both" ;;
         *) WEB_UI="mainsail" ;;
     esac
+    info "UI: ${WEB_UI}"
+}
 
+apply_web_ui() {
+    # Write the chosen UI into the Moonraker config (needs create_moonraker_conf first)
     local conf="${IHB_CONFIG_DIR}/infinite_heatbed.conf"
     local theme="mainsail"
     [[ $WEB_UI == "fluidd" ]] && theme="fluidd"
@@ -352,9 +357,10 @@ main() {
         if ! grep -q "^\[infinite_heatbed_server\]" "${IHB_CONFIG_DIR}/infinite_heatbed.conf" 2>/dev/null; then
             create_moonraker_conf
         fi
+        prompt_web_ui
         link_moonraker
         link_web_ui
-        prompt_web_ui
+        apply_web_ui
         add_includes_to_config
         sudo systemctl restart moonraker 2>/dev/null && info "Moonraker restarted"             || warn "Could not restart moonraker (try: sudo systemctl restart moonraker)"
         return
@@ -366,12 +372,13 @@ main() {
     else
         info "Installing Voron Infinite Heatbed..."
         check_dirs
+        prompt_web_ui
         link_klipper
         link_moonraker
         copy_configs
         create_moonraker_conf
         link_web_ui
-        prompt_web_ui
+        apply_web_ui
         prompt_motor_count
         prompt_sensor_type
         prompt_door_type
