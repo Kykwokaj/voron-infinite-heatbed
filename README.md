@@ -392,7 +392,21 @@ a comment to the start G-code naming the mat, for example `; ihb_mat = Smooth PE
 
 ## Web UI
 
-Open `http://<printer>/ihb/`, or **Belt Bed** in the Mainsail sidebar. It shows:
+Open `http://<printer>/ihb/`. It works with Mainsail and Fluidd; install.sh asks
+which one you use (change it later with `bash install.sh --web-ui`):
+
+| Choice | What you get |
+|--------|--------------|
+| Mainsail | Mainsail-style page, **Belt Bed** link in the Mainsail sidebar |
+| Fluidd | Fluidd-style page, plus a compact belt card on the Fluidd dashboard (Cameras panel) |
+| Both | All of the above |
+
+The Fluidd dashboard card is a Moonraker webcam of type `iframe` ("HTTP page")
+showing `/ihb/?embed=1&theme=fluidd`: belt view, status, eject progress, jog and
+Eject now, with a link to the full page. `?theme=fluidd` or `?theme=mainsail`
+on any URL overrides the style; `ui_theme` in `[infinite_heatbed_server]` sets the default.
+
+The full page shows:
 
 - **Now printing**: file, plate number, progress, layer, ETA, time until the queue is done; Pause and "Stop after this plate"
 - **Belt bed**: side view with the seam position, belt position, eject cycles, last eject time, belt motor current, a live eject progress bar (cool, lift, belt, done), jog buttons, Set seam here, Eject now
@@ -405,6 +419,7 @@ Settings and mats are stored in Moonraker's database and pushed to Klipper on ev
 Requirements in moonraker.conf (install.sh adds them through `ihb/infinite_heatbed.conf`):
 ```ini
 [infinite_heatbed_server]
+ui_theme: fluidd          # or mainsail
 
 [job_queue]
 automatic_transition: False

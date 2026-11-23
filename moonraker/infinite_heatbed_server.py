@@ -111,6 +111,11 @@ class InfiniteHeatbedServer:
         roots = config.get('web_roots', '~/mainsail, ~/fluidd')
         self.web_roots = [os.path.expanduser(r.strip())
                           for r in roots.split(',') if r.strip()]
+        # Look of the web UI: 'mainsail' or 'fluidd' (chosen by install.sh)
+        self.ui_theme = config.get('ui_theme', 'mainsail').strip().lower()
+        if self.ui_theme not in ('mainsail', 'fluidd'):
+            self.logger.warning("IHB: unknown ui_theme %r, using mainsail", self.ui_theme)
+            self.ui_theme = 'mainsail'
 
         self.ihb = {}                 # latest Klipper infinite_heatbed status
         self.last_seq = None
@@ -246,6 +251,7 @@ class InfiniteHeatbedServer:
             'mats': self.mats,
             'settings': self.settings,
             'notice': self.last_notice,
+            'ui_theme': self.ui_theme,
         }
 
     def _notify(self, notice=None):

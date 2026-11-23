@@ -8,6 +8,19 @@
 (function () {
   const $ = (id) => document.getElementById(id);
   const qs = new URLSearchParams(location.search);
+  const EMBED = qs.has('embed');
+
+  // Theme: ?theme=fluidd|mainsail, else the ui_theme set at install
+  // (sent by the Moonraker component), else the Mainsail-style default.
+  function applyTheme(theme) {
+    if (qs.get('theme')) theme = qs.get('theme');
+    theme = theme === 'fluidd' ? 'fluidd' : 'mainsail';
+    document.documentElement.dataset.theme = theme;
+    const full = document.getElementById('open-full');
+    if (full) full.href = './' + (theme === 'fluidd' ? '?theme=fluidd' : '');
+  }
+  applyTheme(null);
+  if (EMBED) document.documentElement.classList.add('embed');
 
   // ── Small helpers ──────────────────────────────────────────────────────────
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g,
@@ -139,6 +152,7 @@
       const res = await mr.call('machine.infinite_heatbed.status');
       S.server = res.server || null;
       S.serverMissing = !S.server;
+      if (S.server) applyTheme(S.server.ui_theme);
     } catch (e) {
       S.server = null;
       S.serverMissing = true;
@@ -223,7 +237,9 @@
     mr.on('notify_klippy_disconnected', () => setConn('Klipper disconnected.'));
     mr.on('notify_job_queue_changed', () => loadQueue());
     mr.on('notify_history_changed', () => loadHistory());
-    mr.on('notify_ihb_server_update', (p) => { S.server = p[0]; S.serverMissing = false; render(); });
+    mr.on('notify_ihb_server_update', (p) => {
+      S.server = p[0]; S.serverMissing = false; applyTheme(S.server.ui_theme); render();
+    });
   }
 
   // ── Rendering ──────────────────────────────────────────────────────────────
@@ -279,6 +295,13 @@
     const queueLeft = remaining + rows.filter((r) => r.kind === 'queued')
       .reduce((a, r) => a + num((S.meta[r.filename] || {}).estimated_time), 0);
     $('now-queue').textContent = queueLeft > 0 ? fmtDur(queueLeft) : '–';
+
+    // one-line summary for the compact embed view
+    const waiting = rows.filter((r) => r.kind === 'queued').length;
+    $('embed-print').textContent = printing
+      ? (ps.state === 'paused' ? 'Paused ' : 'Printing ') + basename(ps.filename) + ' · ' + Math.round(prog * 100) +
+        '% · plate ' + plateNo + ' of ' + total
+      : (isEjecting() ? 'Ejecting' : 'Printer ' + printState()) + (waiting ? ' · ' + waiting + ' plate' + (waiting > 1 ? 's' : '') + ' queued' : '');
 
     const pause = $('btn-pause');
     pause.textContent = ps.state === 'paused' ? 'Resume' : 'Pause';

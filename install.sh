@@ -6,6 +6,7 @@
 #
 # Usage: bash install.sh [options]
 #   -u / --uninstall     Uninstall the mod
+#   -w / --web-ui        Only (re)choose the web interface: Mainsail / Fluidd / both
 
 set -euo pipefail
 
@@ -30,9 +31,12 @@ warn()    { echo -e "${YELLOW}[IHB WARN]${NC} $*"; }
 error()   { echo -e "${RED}[IHB ERROR]${NC} $*" >&2; exit 1; }
 
 UNINSTALL=0
+WEB_UI_ONLY=0
+WEB_UI=""        # mainsail | fluidd | both  (asked during install)
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -u|--uninstall) UNINSTALL=1 ;;
+        -w|--web-ui)    WEB_UI_ONLY=1 ;;
     esac
     shift
 done
@@ -133,6 +137,10 @@ link_web_ui() {
         fi
     done
 
+}
+
+
+add_mainsail_sidebar() {
     # Add a "Belt Bed" entry to Mainsail's sidebar
     local navi="${HOME}/printer_data/config/.theme/navi.json"
     if [[ ! -f "$navi" ]]; then
@@ -152,6 +160,57 @@ EOF
     elif ! grep -q '"/ihb/"' "$navi"; then
         warn "Add a link to /ihb/ in ${navi} to show 'Belt Bed' in the Mainsail sidebar."
     fi
+}
+
+prompt_web_ui() {
+    # Which web interface shows the belt bed UI?
+    local default=1
+    [[ -d "${HOME}/fluidd" && ! -d "${HOME}/mainsail" ]] && default=2
+    [[ -d "${HOME}/fluidd" && -d "${HOME}/mainsail" ]] && default=3
+    echo ""
+    prompt "Which web interface do you use?"
+    echo "  1) Mainsail  (Belt Bed page + sidebar link)"
+    echo "  2) Fluidd    (Belt Bed page + compact card on the Fluidd dashboard)"
+    echo "  3) Both"
+    read -p "  Enter choice [${default}]: " ui_choice
+    ui_choice="${ui_choice:-$default}"
+    case "$ui_choice" in
+        2) WEB_UI="fluidd" ;;
+        3) WEB_UI="both" ;;
+        *) WEB_UI="mainsail" ;;
+    esac
+
+    local conf="${IHB_CONFIG_DIR}/infinite_heatbed.conf"
+    local theme="mainsail"
+    [[ $WEB_UI == "fluidd" ]] && theme="fluidd"
+    # UI look, used by the Moonraker component
+    if grep -q "^ui_theme:" "$conf"; then
+        sed -i "s/^ui_theme:.*/ui_theme: ${theme}/" "$conf"
+    else
+        sed -i "s/^\[infinite_heatbed_server\]/[infinite_heatbed_server]
+ui_theme: ${theme}/" "$conf"
+    fi
+
+    # Fluidd: show the compact belt card on the dashboard as an "HTTP page"
+    # (iframe) camera. Remove any previous copy first.
+    sed -i '/^\[webcam infinite_heatbed\]/,/^$/d' "$conf"
+    if [[ $WEB_UI != "mainsail" ]]; then
+        cat >> "$conf" <<'EOF'
+
+[webcam infinite_heatbed]
+# Belt bed card on the Fluidd dashboard (Cameras panel)
+service: iframe
+stream_url: /ihb/?embed=1&theme=fluidd
+aspect_ratio: 4:3
+
+EOF
+        info "Added the belt bed card to the Fluidd dashboard (Cameras panel)"
+    fi
+
+    if [[ $WEB_UI != "fluidd" ]]; then
+        add_mainsail_sidebar
+    fi
+    info "Web interface: ${WEB_UI} (UI style: ${theme})"
 }
 
 prompt_motor_count() {
@@ -268,7 +327,9 @@ ${BLUE}Next steps:${NC}
   3. Look for "ihb" folder
   4. Edit "ihb/base/infinite_heatbed.cfg" and set your stepper pins
   5. Return to console and type: HEATBED_STATUS
-  6. Open the belt bed UI: http://<printer>/ihb/ (or "Belt Bed" in the Mainsail sidebar)
+  6. Open the belt bed UI: http://<printer>/ihb/
+     Mainsail: "Belt Bed" in the sidebar. Fluidd: belt card in the Cameras panel.
+     Change later with: bash install.sh --web-ui
 
 ${YELLOW}Config files now in Fluidd:${NC}
   📁 ihb/
@@ -285,6 +346,19 @@ EOF
 }
 
 main() {
+    if [[ $WEB_UI_ONLY -eq 1 ]]; then
+        check_dirs
+        mkdir -p "$IHB_CONFIG_DIR"
+        if ! grep -q "^\[infinite_heatbed_server\]" "${IHB_CONFIG_DIR}/infinite_heatbed.conf" 2>/dev/null; then
+            create_moonraker_conf
+        fi
+        link_moonraker
+        link_web_ui
+        prompt_web_ui
+        add_includes_to_config
+        sudo systemctl restart moonraker 2>/dev/null && info "Moonraker restarted"             || warn "Could not restart moonraker (try: sudo systemctl restart moonraker)"
+        return
+    fi
     if [[ $UNINSTALL -eq 1 ]]; then
         check_dirs
         uninstall
@@ -297,6 +371,7 @@ main() {
         copy_configs
         create_moonraker_conf
         link_web_ui
+        prompt_web_ui
         prompt_motor_count
         prompt_sensor_type
         prompt_door_type
